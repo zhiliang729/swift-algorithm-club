@@ -84,7 +84,7 @@ public struct HashTable<Key: Hashable, Value> {
      or adds a new key-value pair if the key does not exist.
      */
     @discardableResult public mutating func updateValue(_ value: Value, forKey key: Key) -> Value? {
-        let index = self.index(forKey: key)
+        var index = self.index(forKey: key)
 
         // Do we already have this key in the bucket?
         for (i, element) in buckets[index].enumerated() {
@@ -94,13 +94,37 @@ public struct HashTable<Key: Hashable, Value> {
                 return oldValue
             }
         }
-
-        // This key isn't in the bucket yet; add it to the chain.
+        
+        // Resize when load factor greater than 3 / 4
+        if count * 4 > 3 * buckets.capacity {
+            
+//            let resizeCapacity = count * 2 // Growth rate = used * 2
+//            let resizeCapacity = count * 3 // Growth rate = used * 3
+            let resizeCapacity = count * 3 + buckets.capacity / 2 // Growth rate = used * 3 + capacity / 2
+            
+            print("count: \(count)  resize: \(resizeCapacity)")
+            resize(resizeCapacity)
+            
+            index = self.index(forKey: key)
+        }
+        
         buckets[index].append((key: key, value: value))
         count += 1
+        
         return nil
     }
 
+    private mutating func resize(_ capacity: Int) {
+        let oldBuckets = buckets
+        buckets = Array<Bucket>(repeatElement([], count: capacity))
+        for bucket in oldBuckets {
+            for (key, value) in bucket {
+                let index = self.index(forKey: key)
+                buckets[index].append((key: key, value: value))
+            }
+        }
+    }
+    
     /**
      Removes the given key and its
      associated value from the hash table.
